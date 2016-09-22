@@ -1,0 +1,123 @@
+#!/bin/bash
+
+# If any of these packages is updated, we should reboot
+critical_packages="kernel|libc"
+# Update type
+update_type=$1
+
+# Parameters checking
+echo $update_type | grep -q -i "help"
+if [ $? -eq 0 ]; then
+	echo
+	echo "USAGE: $0 [update_type]"
+	echo
+	echo "where update_type can be:"
+	echo "      'normal' (default)"
+	echo "      'security' (security updates only)"
+	echo "      'security-minimal' (minimal update to secure the system)"
+	echo
+	echo "Note: for debian-based systems, 'security' and 'security-minimal'"
+	echo "      have the same effect"
+	echo
+	exit 0
+fi
+
+# If not specified differently, use normal update procedure
+if [ "$update_type" != "security" ] && [ "$update_type" != "security-minimal" ]; then
+	update_type="normal"
+fi
+
+# Determine OS distribution
+debian=0
+redhat=0
+if [ -e /etc/debian_version ]; then
+	debian=1
+	grep security /etc/apt/sources.list > /etc/apt/security.list
+fi
+
+if [ -e /etc/redhat-release ]; then
+	redhat=1
+	yum makecache fast -q 2>/dev/null
+	yum install yum-plugin-security -y > /dev/null
+fi
+
+# Check if we need to upgrade
+echo "Update type selected: $update_type"
+echo "Checking updates..."
+if [ $redhat -gt 0 ]; then
+	# Determine update type
+	if [ "$update_type" == "security" ] || [ "$update_type" == "security-minimal" ]; then
+		secfixes=`yum updateinfo security -q | wc -l`
+		if [ $secfixes -eq 0 ]; then
+			exit_code=0
+		else
+			exit_code=100
+		fi
+	else
+		yum check-update > /dev/null
+		exit_code=$?
+	fi
+	if [ $exit_code -ne 100 ]; then
+		echo "No updates found"
+		exit 0
+	fi
+fi
+
+if [ $debian -gt 0 ]; then
+	# Determine update type
+	if [ "$update_type" == "security" ] || [ "$update_type" == "security-minimal" ]; then
+		apt_options="-oDir::Etc::Sourcelist=/etc/apt/security.list"
+	fi
+	apt-get update > /dev/null
+	apt-get upgrade --just-print $apt_options | grep -i "The following packages will be upgraded"
+	if [ $? -ne 0 ]; then
+		echo "No updates found"
+		exit 0
+	fi
+fi
+
+# Update!
+echo "NOTICE: Updates found"
+echo "Starting update process"
+if [ $redhat -gt 0 ]; then
+	if [ "$update_type" == "security" ]; then
+		command="yum update --security -y"
+	elif [ "$update_type" == "security-minimal" ]; then
+		command="yum update-minimal --security -y"
+	else
+		command="yum update -y"
+	fi
+elif
+   [ $debian -gt 0 ]; then
+	export DEBIAN_FRONTEND="noninteractive"
+	command="apt-get upgrade -y $apt_options"
+fi
+echo "Executing command: $command"
+# Execute and error cheking
+$command
+update_error=$?
+if [ $update_error -ne 0 ]; then
+	echo "ERROR: update failed. Check the log file for details"
+	exit $update_error
+fi
+
+# Determine if we should/can reboot
+should_reboot=0
+if [ $debian -eq 1 ]; then
+	if [ -e /var/run/reboot-required ]; then
+		should_reboot=1
+	fi
+fi
+
+if [ $redhat -eq 1 ]; then
+	yum history info | grep -E "$critical_packages" && should_reboot=1
+fi
+
+# If we can reboot, then REBOOT
+if [ $should_reboot -gt 0 ]; then
+	echo "NOTICE: we should reboot the system"
+	exit 200
+fi
+
+# Exit code 100 signals and updated system
+exit 100

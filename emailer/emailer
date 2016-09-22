@@ -1,0 +1,204 @@
+#!/bin/bash
+# Rev 1.0.5
+if [ -e /root/scripts/customer_info ]; then
+	source /root/scripts/customer_info
+elif [ -e /etc/emailer.conf ]; then
+	source /etc/emailer.conf
+else
+	echo "File /etc/emailer.conf and /root/scripts/customer_info NOT FOUND"
+	echo "Using default values"
+	customer_name="DEFAULT"
+	rcpt="root@localhost"
+	from=$USER@$HOSTNAME
+fi
+
+# Functions
+function show_help() {
+        echo
+        echo "Usage: $0 [-e] [-v] [-b] [-m mailer] [-o \"mailer_options\"] [-s subsystem] [-r rcpt] <script> [script_options ...]"
+	echo
+	echo "       -e: stricly consider error/warning on exit code alone"
+	echo "       -v: specify one or more times to increse verbosity"
+	echo "       -b: permit to reboot, if necessary"
+        echo "       -r: specify one additional recipient. Use multiple -r to specify multiple recipients"
+	echo "       -m: specify another mailer program"
+	echo "       -o: additional mailer options (note: must be specified inside quotas)"
+        echo
+}
+
+function show_not_found() {
+        echo "script file $script not found!"
+        exit 2
+}
+
+# Default values
+subsys="MISC"
+verbose=0
+severity="INFO"
+valid_rcpt=0
+mailer="mail"
+moptions="-r $from"
+veto_processes="cp|rm|mv|rsync|rsnap|tar|qemu|yum|apt|rpm|dpkg|.*kvm$"
+can_reboot=0
+strict_error=0
+
+# If no parameters are given, show the help message
+if [ $# -lt 1 ]; then
+	show_help
+	exit 1
+fi
+
+# Parameter assignment
+while getopts ":hvbem:o:s:r:" opt; do
+	case $opt in
+		v)
+		  verbose=$((verbose+1))
+		  ;;
+		b)
+		  can_reboot=1
+		  ;;
+		m)
+		  mailer=$OPTARG
+		  ;;
+		o)
+		  moptions="$OPTARG"
+		  ;;
+		s)
+		  subsys=$OPTARG
+		  ;;
+		r)
+		  rcpt="$rcpt $OPTARG"
+		  ;;
+		e)
+		  strict_error=1
+		  ;;
+		h)
+		  show_help
+		  exit 1
+		  ;;
+		\?)
+		  show_help
+		  exit 1
+		  ;;
+		:)
+		  show_help
+                  exit 1
+                  ;;
+	esac
+done
+shift $((OPTIND-1))
+# Script validation and options grabbing
+script=$1
+if [ ! -e $script ]; then
+        show_not_found
+	exit 2
+fi
+command="$@"
+# Rcpt validation
+echo "$rcpt" | grep -q '@' && valid_rcpt=1
+# Mailer validation
+if [ "$mailer" != "mail" ] && [ ! -s "$mailer" ]; then
+	mailer="mail"
+fi
+
+# Prepare logging
+dirname=`dirname $script`
+basename=`basename $script`
+startdate=`date`
+logdir="/var/log/scripts/$basename"
+logfile="$logdir/$basename.log"
+outfile="$logdir/$basename.out"
+errfile="$logdir/$basename.err"
+mkdir -p $logdir
+echo >> $logfile
+echo "START DATE: $startdate" >> $logfile
+
+# Execute
+cd $dirname; $command 2>$errfile >$outfile; exit_code=$?; original_exit_code=$exit_code
+error=`cat $errfile`
+output=`cat $outfile $errfile`
+cat $outfile $errfile >>$logfile
+
+# Detect severity
+case $exit_code in
+	0)
+	  severity="INFO"
+	  ;;
+	1)
+	  severity="ERROR"
+	  ;;
+	2)
+	  severity="WARNING"
+	  ;;
+	3)
+	  severity="ALERT"
+	  ;;
+	100)
+	  severity="NOTICE"
+	  ;;
+	200)
+	  severity="REBOOT"
+	  ;;
+	201)
+	  severity="CANT-REBOOT"
+	  ;;
+	*)
+	  severity="ERROR"
+	  ;;
+esac
+
+# If strict error detection is not selected and an errfile is generated, raise serverity
+if [ $strict_error -eq 0 ] && [ -s $errfile ] && ( [ $exit_code -eq 0 ] || [ $exit_code -gt 2 ] ); then
+	severity="WARNING"
+	exit_code=2
+fi
+
+# Determine if we can reboot
+# Check for very important running processes that should halt reboot
+vetoing_processes=`ps -eO comm --cols=160 | grep -E "[[:digit:]:]+ ($veto_processes)"`
+if [ $severity == "REBOOT" ]; then
+       	if [ $can_reboot -eq 0 ]; then
+		echo "NOTICE: we can't reboot the system because '-b' option was not provided" >> $logfile
+		severity="CANT-REBOOT"
+		exit_code=201
+	elif [ ! -z "$vetoing_processes" ]; then
+		echo "NOTICE: we can't reboot the system due to some critical processes:" >> $logfile
+		echo "$vetoing_processes" >> $logfile
+		can_reboot=0
+		severity="CANT-REBOOT"
+		exit_code=201
+	fi
+else
+	can_reboot=0
+fi
+
+# Finish logging
+stopdate=`date`
+echo "STOP DATE:  $stopdate" >> $logfile
+echo "EXIT CODE:  $original_exit_code" >> $logfile
+
+# Strip output from strange characters and send email
+sent=0
+moutput=`echo "$output" | grep -o "[[:print:]]*"`
+if [ $valid_rcpt -eq 1 ] && ( [ $verbose -gt 0 ] || [ $severity != "INFO" ] ); then
+        echo "$moutput" | $mailer $moptions -s "$severity:$subsys:$customer_name:$HOSTNAME" $rcpt
+	sent=1	
+fi
+
+# Decide if output must be printed
+if [ ! -z "$output" ] && ( [ $verbose -gt 1 ] || ( [ $exit_code -gt 0 ] && [ $exit_code -le 2 ] ) || ( [ $sent -eq 0 ] && ( [ $exit_code -gt 0 ] && [ $exit_code -le 3 ] ) ) ); then
+	echo "$output"
+fi
+
+# If needed, reboot
+if [ $can_reboot -eq 1 ] && [ $severity == "REBOOT" ]; then
+	echo "NOTICE: rebooting system" >> $logfile
+	reboot
+fi
+
+# Exit code
+if [ $exit_code -gt 0 ] && [ $exit_code -lt 100 ]; then
+	exit $exit_code
+else
+	exit 0
+fi
