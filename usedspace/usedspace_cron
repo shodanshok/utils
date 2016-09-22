@@ -1,0 +1,3 @@
+#!/bin/bash
+emailer="/root/scripts/utils/emailer/emailer"
+$emailer -s USEDSPACE /root/scripts/utils/usedspace/usedspace

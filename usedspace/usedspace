@@ -1,0 +1,36 @@
+#!/bin/bash
+limit1=90
+limit2=95
+lastsent="/tmp/usedspace.lastsent"
+currentdate=`date -Idate`
+
+# If limit2 is reached, immediately send a warning
+for used in `df -h | grep -o "[[:digit:]]\+%" | grep -o "[[:digit:]]\+"`; do
+	if [ $used -gt $limit2 ]; then
+		echo "Low free space (usage limit: $limit2)! See below for details:"
+		df -h
+		echo $currentdate > $lastsent
+		exit 2
+	fi
+done
+
+# If limit1 is reached, send an alert per day
+# Check if lastsent file exists
+if [ -e $lastsent ]; then
+	lastdate=`cat $lastsent`
+else
+	lastdate="0000-00-00"
+fi
+# Compare lastdate and currentdate. If they are the same, exit without alert
+if [ "$lastdate" == "$currentdate" ]; then
+	exit 0
+fi
+# If they differ, go ahead and, if needed, send and alert
+for used in `df -h | grep -o "[[:digit:]]\+%" | grep -o "[[:digit:]]\+"`; do
+        if [ $used -gt $limit1 ]; then
+                echo "Low free space (usage limit: $limit1)! See below for details:"
+                df -h
+		echo $currentdate > $lastsent
+                exit 2
+        fi
+done
