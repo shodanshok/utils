@@ -9,6 +9,7 @@ fi
 drbdconf="/etc/drbd.d/global_common.conf"
 resource="vol1"
 overlay="/opt/vol1"
+randsuffix=$RANDOM
 
 checkRole "before" "Primary"
 checkIfOtherPrimary
@@ -46,7 +47,11 @@ echo "Phase 2: mounting overlay filesystem"
 mount $overlay
 echo
 
-echo "Phase 3: reloading libvirtd configuration"
+echo "Phase 3: starting drbdlinks"
+drbdlinks start
+echo
+
+echo "Phase 4: reloading libvirtd configuration"
 read -p "Did you want to restart the virtual machines (y/N)?" confirm
 if [ $confirm == "y" ] || [ $confirm == "Y" ] ; then
 	service virtlogd stop
@@ -62,7 +67,7 @@ echo
 checkRole "after" "Primary"
 echo
 if [ $currentRole == "Primary" ]; then
-echo "Phase 4: set DRBD 'become-primary-on'"
+echo "Phase 5: set DRBD 'become-primary-on'"
 	sed -i s/#.*become-primary-on/become-primary-on/ $drbdconf
 fi
 

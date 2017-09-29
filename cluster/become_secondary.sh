@@ -68,7 +68,11 @@ echo "Phase 4: unmounting overlay filesystem"
 umount $overlay
 echo
 
-echo "Phase 5: switching to DRBD secondary role"
+echo "Phase 5: stopping drbdlinks"
+drbdlinks -v stop
+echo
+
+echo "Phase 6: switching to DRBD secondary role"
 drbdadm secondary $resource
 echo
 
