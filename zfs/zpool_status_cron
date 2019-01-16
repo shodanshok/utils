@@ -1,0 +1,3 @@
+#!/bin/bash
+emailer="/root/scripts/utils/emailer/emailer"
+$emailer -s RAID /root/scripts/utils/zfs/zpool_status

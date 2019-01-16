@@ -1,0 +1,4 @@
+#!/bin/bash
+exit_code=0
+/usr/sbin/zpool status | grep -q -i "DEGRADED\|OFFLINE\|UNAVAIL" && /usr/sbin/zpool status && exit_code=1
+exit $exit_code
