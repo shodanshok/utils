@@ -2,10 +2,10 @@
 
 # Debug
 function debuginfo() {
-        echo "Additional info:"
-        echo "basetime: $basetime"
-        echo "snaptime: $snaptime"
-        echo "lastsnap: $lastsnap"
+	echo "Additional info:"
+	echo "basetime: `date -d @$basetime` ($basetime)"
+	echo "snaptime: `date -d @$snaptime` ($snaptime)"
+	echo "lastsnap: $lastsnap  (as read from ZFS)"
 }
 
 # Check hourly snapshots
