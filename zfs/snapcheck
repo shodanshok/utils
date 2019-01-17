@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Debug
+function debuginfo() {
+        echo "Additional info:"
+        echo "basetime: $basetime"
+        echo "snaptime: $snaptime"
+        echo "lastsnap: $lastsnap"
+}
+
+# Check hourly snapshots
+debug=0
+snaptype="hourly"
+maxage="2 hours"
+basetime=`date -d "-$maxage" "+%s"`
+lastsnap=`zfs list -H -t snapshot -o name,creation | grep hourly | cut -f 2 | tail -n 1`
+
+# If lastsnap is empty, assume you are not yet taking snapshots
+if [ -z "$lastsnap" ]; then
+	echo "No $snaptype snapshots"
+	echo "Check your rolling snapshot system"
+	exit 0
+fi
+
+# Alert if snapshot is too old
+snaptime=`date -d "$lastsnap" "+%s"`
+if [ $basetime -gt $snaptime ]; then
+	echo "Last $snaptype snapshot is over $maxage old"
+	echo "Check your rolling snapshot system"
+	debuginfo
+	exit 1
+fi
+
+# Print debug info
+if [ $debug -gt 0 ]; then
+	debuginfo
+fi
