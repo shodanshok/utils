@@ -5,7 +5,7 @@ serverurl="https://graylog/api"	# default serverurl
 credentials="monitor:changeme"	# default credentials
 extra="-ks"			# extra options
 since=`date -I -d yesterday`	# yesterday
-failure=1			# be optimistic
+failure=1			# be pessimistic
 
 # if options are provided, use them
 if [ "$1" ]; then
