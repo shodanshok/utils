@@ -1,0 +1,28 @@
+#!/bin/bash
+
+debug=false			# do not debug by default
+serverurl="https://graylog/api"	# default serverurl
+credentials="monitor:changeme"	# default credentials
+extra="-ks"			# extra options
+since=`date -I -d yesterday`	# yesterday
+failure=1			# be optimistic
+
+# if options are provided, use them
+if [ "$1" ]; then
+        serverurl="$1"
+	$debug && echo "$serverurl"
+fi
+
+if [ "$2" ]; then
+	credentials="$2"
+	$debug && echo "$credentials"
+fi
+
+# check for indexer failures
+currenturl="$serverurl/system/indexer/failures/count?since=$since"
+$debug && echo curl "$currenturl" -u "$credentials" $extra
+curl "$currenturl" -u "$credentials" $extra | grep -q '{"count":0}' && failure=0
+if [ $failure -gt 0 ]; then
+	echo "Indexer failures detected! Please check graylog status"
+fi
+exit $failure
