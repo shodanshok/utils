@@ -1,0 +1,14 @@
+#!/bin/bash
+
+raid_error=0
+grep -q _ /proc/mdstat && raid_error=1
+
+if [ $raid_error -eq 0 ]; then
+        echo; echo "RAID system OK"; echo; echo
+        cat /proc/mdstat
+        exit 0
+else
+        echo; echo "WARNING: RAID system HAS A PROBLEM!"; echo; echo
+        cat /proc/mdstat
+        exit 1
+fi
