@@ -1,0 +1,152 @@
+#!/bin/bash
+# Version 1.0.0
+source /root/scripts/customer_info
+ARCPT="$RCPT"
+
+# Function to send emails
+function send_mail() {
+        if [ $send_mail -gt 0 ]; then
+                echo -e "$mailobj" | $mailcmd
+        fi
+}
+
+# Functions to log error in a standardized manner
+function log_error() {
+        echo " - $timestamp - ERROR: Completed $interval backup with some errors: " >> $logfile
+        cat $errfile >> $logfile
+        echo >> $logfile
+        mailobj=`head -100 $logfile | grep -o "[[:print:]]*"`
+        mailcmd=$mailcmd_error
+        send_mail
+        cat $logfile
+        /usr/local/bin/unix2dos $logfile
+        cat $logfile >> $historyfile
+}
+
+# Functions to log informational messages in a standardized manner
+function log_info() {
+        echo " - $timestamp - SUCCESS: $interval backup completed successfully " >> $logfile
+        echo >> $logfile
+        if [ $interval != "hourly" ]; then
+                if [ $error -gt 0 ]; then
+                        mailobj=`head -100 $logfile`
+                        mailcmd=$mailcmd_alert
+                        send_mail
+                else
+                        mailobj=`head -100 $logfile`
+                        mailcmd=$mailcmd_info
+                        send_mail
+                fi
+        fi
+        /usr/local/bin/unix2dos $logfile
+        cat $logfile >> $historyfile
+}
+
+# Variables
+suffix=`date +%Y%m%d-%H%M%S`
+confdir="/usr/local/etc/rsnapshot.custom.d"
+logdir="/tmp/rsnapshot.custom.d"
+errfile="$logdir/rsnapshot_error_$suffix"
+logfile="$logdir/rsnapshot_log_$suffix"
+historyfile="/mnt/rsnapshot/snapshots.log"
+backupbase="/mnt/rsnapshot/"
+interval=$1
+items=$2
+error=0
+duerror=0
+send_mail=1
+emailer=/usr/local/bin/mailx
+rsnapshotbin=/usr/local/bin/rsnapshot
+mailcmd_info="$emailer -r $FROM -s INFO:BACKUP:$CUSTOMER_NAME:$HOSTNAME:$interval $RCPT"
+mailcmd_error="$emailer -r $FROM -s WARNING:BACKUP:$CUSTOMER_NAME:$HOSTNAME:$interval $RCPT"
+mailcmd_alert="$emailer -r $FROM -s ALERT:BACKUP:$CUSTOMER_NAME:$HOSTNAME:$interval $ARCPT"
+
+# Parameters checking
+if [ "$#" -ne 2 ]; then
+        timestamp=`date`
+        echo " - $timestamp - ERROR: Wrong command line" >> $errfile
+        log_error
+        exit 1
+fi
+
+# Old log clearing
+mkdir -p "$logdir"
+find "$logdir" -mtime +7 -iname "rsnapshot_log_*" -print0 | xargs -0 rm -f
+find "$logdir" -mtime +7 -iname "rsnapshot_error_*" -print0 | xargs -0 rm -f
+
+# Run rsnapshot and log the results
+for item in $items; do
+        timestamp=`date`
+        echo " - $timestamp - Starting $interval $item backup" >> $logfile
+        $rsnapshotbin -c $confdir/$item.conf $interval 2>>$errfile >>$logfile
+        exit_code=$?
+        # Record the worse error happened during rsnapshot executions
+        if [ $exit_code -gt 0 ]; then
+                if [ $error -eq 0 ] || [ $exit_code -lt $error ]; then
+                        error=$exit_code
+                fi
+        fi
+        timestamp=`date`
+        size=`du -hs $backupbase/$item/$interval.0 2>>$errfile | grep -o ".*[[:space:]]"`
+        exit_code=$?
+        # Check du error code
+        if [ $exit_code -ne 0 ] && [ $interval == "daily" ]; then
+                duerror=1
+        fi
+        echo " - $timestamp - Finished $interval $item backup - Size: $size" >> $logfile
+done
+
+# An hard error (exit code 1) occoured. Log and exit
+if [ $error -eq 1 ]; then
+        log_error
+        exit $error
+fi
+
+# Du aborted with an error. This means that
+# the backup directory has some big problem
+# Log this situation as an error and exit
+if [ $duerror -gt 0 ]; then
+        log_error
+        exit $duerror
+fi
+
+# rsnapshot 1.4.x changed how rsync error code 24
+# output warning to stderr. Now code 24 does not
+# show anything on stderr, but return an exit code
+# equal to 2 (warning). This means tha in case of
+# vanished files, rsnapshot retuns 2 but stderr is
+# empty. So, we need to disable the following checks
+
+# An error happened but the error file is empty
+# not contain any userful information.
+# Log this situation as an error and exit
+#if [ $error -gt 0 ]; then
+#       haserror=0
+#       grep -q -i "error\|warn\|rsync" $errfile && haserror=1
+#       if [ ! -s $errfile ] || [ $haserror -eq 0 ]; then
+#               log_error
+#               exit $error
+#       fi
+#fi
+
+# If the error file exists, try to distinguish
+# between a serious error and a simple "file vanished"
+#realerror=`grep -i "error" $errfile -c`
+#warnlines=`grep -i "rsync warning" $errfile -c`
+#vanishedwarns=`grep "rsync warning: some files vanished" $errfile -c`
+# If exit code was nonzero but the only warnings are for vanished files,
+# suppress error logging
+#if [ $error -gt 0 ] && [ $realerror -eq 0 ] && [ $warnlines -gt 0 ] && [ $warnlines -eq $vanishedwarns ]; then
+#       error=0
+#       log_info
+#       exit $error
+#fi
+
+# If a real error happened, log and report it
+if [ $error -gt 0 ]; then
+        log_error
+        exit $error
+else
+        log_info
+fi
+
