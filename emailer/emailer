@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rev 1.0.5
+# Rev 1.0.6
 if [ -e /root/scripts/customer_info ]; then
 	source /root/scripts/customer_info
 elif [ -e /etc/emailer.conf ]; then
@@ -115,8 +115,6 @@ echo "START DATE: $startdate" >> $logfile
 
 # Execute
 cd $dirname; $command 2>$errfile >$outfile; exit_code=$?; original_exit_code=$exit_code
-error=`cat $errfile`
-output=`cat $outfile $errfile`
 cat $outfile $errfile >>$logfile
 
 # Detect severity
@@ -179,15 +177,16 @@ echo "EXIT CODE:  $original_exit_code" >> $logfile
 
 # Strip output from strange characters and send email
 sent=0
-moutput=`echo "$output" | grep -o "[[:print:]]*"`
+moutput=`tail -n 100 $outfile $errfile | grep -o "[[:print:]]*"`
 if [ $valid_rcpt -eq 1 ] && ( [ $verbose -gt 0 ] || [ $severity != "INFO" ] ); then
         echo "$moutput" | $mailer $moptions -s "$severity:$subsys:$customer_name:$HOSTNAME" $rcpt
 	sent=1	
 fi
 
 # Decide if output must be printed
-if [ ! -z "$output" ] && ( [ $verbose -gt 1 ] || ( [ $exit_code -gt 0 ] && [ $exit_code -le 2 ] ) || ( [ $sent -eq 0 ] && ( [ $exit_code -gt 0 ] && [ $exit_code -le 3 ] ) ) ); then
-	echo "$output"
+if [ $verbose -gt 1 ] || ( [ $exit_code -gt 0 ] && [ $exit_code -le 2 ] ) || ( [ $sent -eq 0 ] && ( [ $exit_code -gt 0 ] && [ $exit_code -le 3 ] ) ) ; then
+	cat $outfile
+	cat $errfile >&2
 fi
 
 # If needed, reboot
