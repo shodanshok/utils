@@ -1,5 +1,5 @@
 #!/bin/bash
-# Rev 1.0.8
+# Rev 1.0.7
 if [ -e /root/scripts/customer_info ]; then
 	source /root/scripts/customer_info
 elif [ -e /etc/emailer.conf ]; then
@@ -15,10 +15,11 @@ fi
 # Functions
 function show_help() {
         echo
-        echo "Usage: $0 [-e] [-v] [-b] [-m mailer] [-o \"mailer_options\"] [-s subsystem] [-r rcpt] <script> [script_options ...]"
+        echo "Usage: $0 [-e] [-v] [-q] [-b] [-m mailer] [-o \"mailer_options\"] [-s subsystem] [-r rcpt] <script> [script_options ...]"
 	echo
 	echo "       -e: stricly consider error/warning on exit code alone"
 	echo "       -v: specify one or more times to increse verbosity"
+	echo "       -q: suppress terminal output"
 	echo "       -b: permit to reboot, if necessary"
         echo "       -r: specify one additional recipient. Use multiple -r to specify multiple recipients"
 	echo "       -m: specify another mailer program"
@@ -34,6 +35,7 @@ function show_not_found() {
 # Default values
 subsys="MISC"
 verbose=0
+quiet=0
 severity="INFO"
 valid_rcpt=0
 mailer="mail"
@@ -49,10 +51,13 @@ if [ $# -lt 1 ]; then
 fi
 
 # Parameter assignment
-while getopts ":hvbem:o:s:r:" opt; do
+while getopts ":hvqbem:o:s:r:" opt; do
 	case $opt in
 		v)
 		  verbose=$((verbose+1))
+		  ;;
+		q)
+		  quiet=1
 		  ;;
 		b)
 		  can_reboot=1
@@ -188,7 +193,7 @@ if [ $valid_rcpt -eq 1 ] && ( [ $verbose -gt 0 ] || [ $severity != "INFO" ] ); t
 fi
 
 # Decide if output must be printed; if we had a mailer error, always print to terminal
-if [ $merror -gt 0 ] || [ $verbose -gt 1 ] ; then
+if [ $merror -gt 0 ] || [ $quiet -eq 0 ] && ( [ $verbose -gt 1 ] || [ $severity == "ERROR" ] || [ $severity == "WARNING" ] ) ; then
 	cat $outfile
 	cat $errfile >&2
 fi
