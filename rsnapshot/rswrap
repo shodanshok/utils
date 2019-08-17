@@ -1,5 +1,5 @@
 #!/bin/bash
-# Version 1.0.1
+# Version 1.0.2
 
 # Functions to log error in a standardized manner
 function log_error() {
@@ -16,7 +16,8 @@ function log_info() {
 # Commit log into history
 function log_history() {
 	cat $logfile >> $historyfile
-	cat $errfile >> $historyfile
+	grep -v "$vanished" $errfile >> $historyfile
+	grep -v "$vanished" $errfile >&2
 	echo >> $historyfile
 }
 
@@ -29,27 +30,33 @@ backupbase="/opt/snapshots"
 errfile="$logdir/rsnapshot_error_$suffix"
 logfile="$logdir/rsnapshot_log_$suffix"
 historyfile="$backupbase/snapshots.log"
+vanished="vanished during rsync operation"
 interval=$1
 items=$2
 error=0
 duerror=0
 
+# Create log files
+mkdir -p "$logdir"
+touch $logfile
+touch $errfile
+
 # Parameters checking
 if [ "$#" -ne 2 ]; then
         timestamp=`date`
         log_error "ERROR: Wrong command line"
+	log_history
         exit 1
 fi
 
 # Old log clearing
-mkdir -p "$logdir"
 find "$logdir" -type f -mtime +7 -name "rsnapshot_log_*" -delete
 find "$logdir" -type f -mtime +7 -name "rsnapshot_error_*" -delete
 
 # Run rsnapshot and log the results
 for item in $items; do
 	log_info "Starting $interval $item backup"
-        $rsnapshotbin -c $confdir/$item.conf $interval 2>>$errfile >>$logfile
+        $rsnapshotbin -c $confdir/$item.conf $interval 2>>$errfile >/dev/null
         exit_code=$?
         # Record the worse error happened during rsnapshot executions
         if [ $exit_code -gt 0 ]; then
@@ -79,6 +86,12 @@ if [ $duerror -gt 0 ]; then
 	log_error "ERROR: du can not access $backupbase. Please check it"
         log_history
         exit $duerror
+fi
+
+# If the only errors are about vanished files, ignore them.
+# On empty error file, skip this check.
+if [ -s $errfile ]; then
+	grep -q -v "$vanished" $errfile || error=0
 fi
 
 # If a real error happened, log and report it
