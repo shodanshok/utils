@@ -1,5 +1,5 @@
 #!/bin/bash
-# Version 1.0.2
+# Version 1.0.3
 
 # Functions to log error in a standardized manner
 function log_error() {
@@ -16,8 +16,8 @@ function log_info() {
 # Commit log into history
 function log_history() {
 	cat $logfile >> $historyfile
-	grep -v "$vanished" $errfile >> $historyfile
-	grep -v "$vanished" $errfile >&2
+	grep -v "$vanishedstring" $errfile >> $historyfile
+	grep -v "$vanishedstring" $errfile >&2
 	echo >> $historyfile
 }
 
@@ -30,11 +30,17 @@ backupbase="/opt/snapshots"
 errfile="$logdir/rsnapshot_error_$suffix"
 logfile="$logdir/rsnapshot_log_$suffix"
 historyfile="$backupbase/snapshots.log"
-vanished="vanished during rsync operation"
+vanishedstring="vanished during rsync operation"
+vanishedignore=1
 interval=$1
 items=$2
 error=0
 duerror=0
+
+# If not ignoring vanished files, use a random string to match
+if [ $vanishedignore -ne 1 ]; then
+	vanishedstring=`uuidgen`
+fi
 
 # Create log files
 mkdir -p "$logdir"
@@ -90,8 +96,8 @@ fi
 
 # If the only errors are about vanished files, ignore them.
 # On empty error file, skip this check.
-if [ -s $errfile ]; then
-	grep -q -v "$vanished" $errfile || error=0
+if [ -s $errfile ] && [ $vanishedignore -eq 1 ]; then
+	grep -q -v "$vanishedstring" $errfile || error=0
 fi
 
 # If a real error happened, log and report it
