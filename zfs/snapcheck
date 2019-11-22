@@ -1,4 +1,5 @@
 #!/bin/bash
+LC_TIME=en_US
 
 # Debug
 function debuginfo() {
