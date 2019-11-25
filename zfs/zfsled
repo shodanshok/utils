@@ -1,0 +1,6 @@
+#!/bin/bash
+ledctl normal=/dev/sda 2>/dev/null
+for dev in `zpool status -P -x | grep -o "/dev/.*" | grep -v "ONLINE" | grep -o "/dev/\S*"`; do
+	dev=${dev%-*}
+	ledctl -x failure=$dev
+done
