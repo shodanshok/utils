@@ -48,12 +48,14 @@ touch $logfile
 touch $errfile
 
 # Parameters checking
-if [ "$#" -ne 2 ]; then
-        timestamp=`date`
+if [ "$#" -lt 2 ]; then
         log_error "ERROR: Wrong command line"
 	log_history
-        exit 1
+	exit 1
 fi
+while shift; do
+        items="$items $1"
+done
 
 # Old log clearing
 find "$logdir" -type f -mtime +7 -name "rsnapshot_log_*" -delete
