@@ -1,5 +1,5 @@
 #!/bin/bash
-# Version 1.0.3.2
+# Version 1.0.4
 
 # Functions to log error in a standardized manner
 function log_error() {
@@ -16,8 +16,13 @@ function log_info() {
 # Commit log into history
 function log_history() {
 	cat $logfile >> $historyfile
-	grep -v "$vanishedstring" $errfile >> $historyfile
-	grep -v "$vanishedstring" $errfile >&2
+	if [ $vanishedignore -eq 1 ]; then
+		grep -v "$vanishedstring" $errfile >> $historyfile
+		grep -v "$vanishedstring" $errfile >&2
+	else
+		cat $errfile >> $historyfile
+		cat $errfile >&2
+	fi
 	echo >> $historyfile
 }
 
@@ -35,11 +40,6 @@ vanishedignore=1
 interval=$1
 error=0
 duerror=0
-
-# If not ignoring vanished files, use a random string to match
-if [ $vanishedignore -ne 1 ]; then
-	vanishedstring=`uuidgen`
-fi
 
 # Create log files
 mkdir -p "$logdir"
