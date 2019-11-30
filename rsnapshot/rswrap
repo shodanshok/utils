@@ -53,7 +53,6 @@ if [ "$#" -lt 2 ]; then
 	exit 1
 fi
 while shift; do
-	echo $1
         items="$items $1"
 done
 
