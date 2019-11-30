@@ -1,5 +1,5 @@
 #!/bin/bash
-# Version 1.0.3
+# Version 1.0.3.2
 
 # Functions to log error in a standardized manner
 function log_error() {
@@ -33,7 +33,6 @@ historyfile="$backupbase/snapshots.log"
 vanishedstring="vanished during rsync operation"
 vanishedignore=1
 interval=$1
-items=$2
 error=0
 duerror=0
 
@@ -54,6 +53,7 @@ if [ "$#" -lt 2 ]; then
 	exit 1
 fi
 while shift; do
+	echo $1
         items="$items $1"
 done
 
