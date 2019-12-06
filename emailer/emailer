@@ -15,7 +15,7 @@ fi
 # Functions
 function show_help() {
         echo
-        echo "Usage: $0 [-e] [-v] [-b] [-m mailer] [-o \"mailer_options\"] [-s subsystem] [-r rcpt] <script> [script_options ...]"
+        echo "Usage: $0 [-e] [-v] [-b] [-l logsuffix] [-m mailer] [-o \"mailer_options\"] [-s subsystem] [-r rcpt] <script> [script_options ...]"
 	echo
 	echo "       -e: stricly consider error/warning on exit code alone"
 	echo "       -v: specify one or more times to increse verbosity"
@@ -23,6 +23,7 @@ function show_help() {
         echo "       -r: specify one additional recipient. Use multiple -r to specify multiple recipients"
 	echo "       -m: specify another mailer program"
 	echo "       -o: additional mailer options (note: must be specified inside quotas)"
+	echo "       -l: log directory suffix"
         echo
 }
 
@@ -41,6 +42,7 @@ moptions="-r $from"
 veto_processes="cp|rm|mv|rsync|rsnap|tar|qemu|yum|apt|rpm|dpkg|.*kvm$"
 can_reboot=0
 strict_error=0
+logsuffix=""
 
 # If no parameters are given, show the help message
 if [ $# -lt 1 ]; then
@@ -49,7 +51,7 @@ if [ $# -lt 1 ]; then
 fi
 
 # Parameter assignment
-while getopts ":hvbem:o:s:r:" opt; do
+while getopts ":hvbem:o:s:r:l:" opt; do
 	case $opt in
 		v)
 		  verbose=$((verbose+1))
@@ -71,6 +73,9 @@ while getopts ":hvbem:o:s:r:" opt; do
 		  ;;
 		e)
 		  strict_error=1
+		  ;;
+		l)
+		  logsuffix=".$OPTARG"
 		  ;;
 		h)
 		  show_help
@@ -105,7 +110,7 @@ fi
 dirname=`dirname $script`
 basename=`basename $script`
 startdate=`date`
-logdir="/var/log/scripts/$basename"
+logdir="/var/log/scripts/$basename$logsuffix"
 logfile="$logdir/$basename.log"
 outfile="$logdir/$basename.out"
 errfile="$logdir/$basename.err"
