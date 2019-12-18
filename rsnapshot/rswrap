@@ -40,6 +40,7 @@ vanishedignore=1
 interval=$1
 error=0
 duerror=0
+errorlist=""
 
 # Create log files
 mkdir -p "$logdir"
@@ -67,6 +68,7 @@ for item in $items; do
         exit_code=$?
         # Record the worse error happened during rsnapshot executions
         if [ $exit_code -gt 0 ]; then
+		errorlist="$errorlist $item"
                 if [ $error -eq 0 ] || [ $exit_code -lt $error ]; then
                         error=$exit_code
                 fi
@@ -82,7 +84,7 @@ done
 
 # An hard error (exit code 1) occoured. Log and exit, skipping du
 if [ $error -eq 1 ]; then
-	log_error "ERROR: backup completed, but with some errors"
+	log_error "ERROR: backup completed, but with some errors for $errorlist"
         log_history
         exit $error
 fi
@@ -103,7 +105,7 @@ fi
 
 # If a real error happened, log and report it
 if [ $error -gt 0 ]; then
-	log_error "ERROR: backup completed, but with some errors"
+	log_error "WARNING: backup completed, but some files were not transferred (vanished?) for $errorlist"
 else
 	log_info "SUCCESS: backup completed"
 fi
