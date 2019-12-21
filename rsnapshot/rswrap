@@ -28,7 +28,7 @@ function log_history() {
 }
 
 # Variables
-suffix=`date +%Y%m%d-%H%M%S`
+suffix=`date +%Y%m%d-%H%M%S`.$$
 rsnapshotbin=/usr/bin/rsnapshot
 confdir="/etc/rsnapshot.custom.d"
 rsnaplog="/var/log/rsnapshot.custom.log/*"
