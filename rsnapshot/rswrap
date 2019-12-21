@@ -1,5 +1,5 @@
 #!/bin/bash
-# Version 1.0.4
+# Version 1.0.5
 
 # Functions to log error in a standardized manner
 function log_error() {
@@ -31,6 +31,7 @@ suffix=`date +%Y%m%d-%H%M%S`
 rsnapshotbin=/usr/bin/rsnapshot
 confdir="/etc/rsnapshot.custom.d"
 logdir="/tmp/rsnapshot.custom.d"
+rsnaplog="/var/log/rsnapshot.custom.log/*"
 backupbase="/opt/snapshots"
 errfile="$logdir/rsnapshot_error_$suffix"
 logfile="$logdir/rsnapshot_log_$suffix"
@@ -82,6 +83,9 @@ for item in $items; do
 	log_info "Finished $interval $item backup - Size: $size"
 done
 
+# If ERROR appears in rsnapshot log, raise a serious error even if exit codes was zero
+tail $rsnaplog | grep -q "ERROR:" && error=1
+
 # An hard error (exit code 1) occoured. Log and exit, skipping du
 if [ $error -eq 1 ]; then
 	log_error "ERROR: backup completed, but with some errors for $errorlist"
@@ -98,14 +102,18 @@ if [ $duerror -gt 0 ]; then
 fi
 
 # If the only errors are about vanished files, ignore them.
-# On empty error file, skip this check.
-if [ -s $errfile ] && [ $vanishedignore -eq 1 ]; then
-	grep -q -v "$vanishedstring" $errfile || error=0
+# On empty error file, check the last lines of rsnapshot logs
+if [ $vanishedignore -eq 1 ]; then	
+	if [ -s $errfile ]; then
+		grep -q -v "$vanishedstring" $errfile || error=0
+	else
+		tail $rsnaplog | grep "WARNING:" | grep -q -v "vanished during rsync operation\|rsnapshot" || error=0
+	fi
 fi
 
 # If a real error happened, log and report it
 if [ $error -gt 0 ]; then
-	log_error "WARNING: backup completed, but some files were not transferred (vanished?) for $errorlist"
+	log_error "WARNING: backup completed, but some files were not transferred for $errorlist"
 else
 	log_info "SUCCESS: backup completed"
 fi
