@@ -24,17 +24,17 @@ function log_history() {
 		cat $errfile >&2
 	fi
 	echo >> $historyfile
+	rm -f $logfile $errfile
 }
 
 # Variables
 suffix=`date +%Y%m%d-%H%M%S`
 rsnapshotbin=/usr/bin/rsnapshot
 confdir="/etc/rsnapshot.custom.d"
-logdir="/tmp/rsnapshot.custom.d"
 rsnaplog="/var/log/rsnapshot.custom.log/*"
 backupbase="/opt/snapshots"
-errfile="$logdir/rsnapshot_error_$suffix"
-logfile="$logdir/rsnapshot_log_$suffix"
+errfile="/tmp/rsnapshot_error_$suffix"
+logfile="/tmp/rsnapshot_log_$suffix"
 historyfile="$backupbase/snapshots.log"
 vanishedstring="vanished during rsync operation"
 vanishedignore=1
@@ -44,7 +44,6 @@ duerror=0
 errorlist=""
 
 # Create log files
-mkdir -p "$logdir"
 touch $logfile
 touch $errfile
 
@@ -57,10 +56,6 @@ fi
 while shift; do
         items="$items $1"
 done
-
-# Old log clearing
-find "$logdir" -type f -mtime +7 -name "rsnapshot_log_*" -delete
-find "$logdir" -type f -mtime +7 -name "rsnapshot_error_*" -delete
 
 # Run rsnapshot and log the results
 for item in $items; do
