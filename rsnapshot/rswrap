@@ -24,14 +24,16 @@ function log_history() {
 		cat $errfile >&2
 	fi
 	echo >> $historyfile
-	rm -f $logfile $errfile
+	if [ $debug -eq 0 ]; then 
+		rm -f $logfile $errfile
+	fi
 }
 
 # Variables
+debug=0
 suffix=`date +%Y%m%d-%H%M%S`.$$
 rsnapshotbin=/usr/bin/rsnapshot
 confdir="/etc/rsnapshot.custom.d"
-rsnaplog="/var/log/rsnapshot.custom.log/*"
 backupbase="/opt/snapshots"
 errfile="/tmp/rsnapshot_error_$suffix"
 logfile="/tmp/rsnapshot_log_$suffix"
@@ -78,8 +80,8 @@ for item in $items; do
 	log_info "Finished $interval $item backup - Size: $size"
 done
 
-# If ERROR appears in rsnapshot log, raise a serious error even if exit codes was zero
-tail $rsnaplog | grep -q "ERROR:" && error=1
+# If ERROR appears in rsnapshot log, raise a serious error unconditionally
+grep -q "ERROR:" $errfile && error=1
 
 # An hard error (exit code 1) occoured. Log and exit, skipping du
 if [ $error -eq 1 ]; then
@@ -96,14 +98,12 @@ if [ $duerror -gt 0 ]; then
         exit $duerror
 fi
 
-# If the only errors are about vanished files, ignore them.
-# On empty error file, check the last lines of rsnapshot logs
-if [ $vanishedignore -eq 1 ]; then	
-	if [ -s $errfile ]; then
-		grep -q -v "$vanishedstring" $errfile || error=0
-	else
-		tail $rsnaplog | grep "WARNING:" | grep -q -v "vanished during rsync operation\|rsnapshot" || error=0
-	fi
+# Err on the safe side: only filter out vanished errors (rsync error 24) if
+# errfile is not empty. Rsnapshot 1.4.x needs "verbose 4" in config file
+# for vanished filter to have any effect. See here for details:
+# https://github.com/rsnapshot/rsnapshot/issues/167
+if [ $vanishedignore -eq 1 ] && [ -s $errfile ]; then
+	grep -q -v "$vanishedstring" $errfile || error=0
 fi
 
 # If a real error happened, log and report it
