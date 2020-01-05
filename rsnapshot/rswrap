@@ -24,13 +24,9 @@ function log_history() {
 		cat $errfile >&2
 	fi
 	echo >> $historyfile
-	if [ $debug -eq 0 ]; then 
-		rm -f $logfile $errfile
-	fi
 }
 
 # Variables
-debug=0
 suffix=`date +%Y%m%d-%H%M%S`.$$
 rsnapshotbin=/usr/bin/rsnapshot
 confdir="/etc/rsnapshot.custom.d"
