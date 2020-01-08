@@ -1,12 +1,10 @@
 #!/bin/bash
-# Rev 1.0.8
+# Rev 1.0.9
 if [ -e /root/scripts/customer_info ]; then
 	source /root/scripts/customer_info
 elif [ -e /etc/emailer.conf ]; then
 	source /etc/emailer.conf
 else
-	echo "File /etc/emailer.conf and /root/scripts/customer_info NOT FOUND"
-	echo "Using default values"
 	customer_name="DEFAULT"
 	rcpt="root@localhost"
 	from=$USER@$HOSTNAME
