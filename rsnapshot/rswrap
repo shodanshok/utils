@@ -24,6 +24,7 @@ function log_history() {
 		cat $errfile >&2
 	fi
 	echo >> $historyfile
+	rm -f $logfile $errfile
 }
 
 # Variables
