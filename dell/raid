@@ -1,0 +1,33 @@
+#!/bin/bash
+
+CHECKS="vdisk battery controller"
+for CHECK in $CHECKS; do
+        RAID_STATUS="$RAID_STATUS"`echo; echo; echo; /opt/dell/srvadmin/bin/omreport storage $CHECK`
+done
+
+RAID_CHECK=`echo "$RAID_STATUS" | grep ^Status`
+if [ -z "$RAID_CHECK" ]
+then
+        exit 1
+fi
+
+RAID_CHECK=`echo "$RAID_CHECK" | grep -v Ok`
+if [ -n "$RAID_CHECK" ]
+then
+        exit 1
+fi
+
+RAID_STATUS=`/opt/dell/srvadmin/bin/omreport storage pdisk controller=0`
+RAID_CHECK=`echo "$RAID_STATUS" | grep Predicted`
+if [ -z "$RAID_CHECK" ]
+then
+        exit 1
+fi
+
+RAID_CHECK=`echo "$RAID_CHECK" | grep -v No`
+if [ -n "$RAID_CHECK" ]
+then
+        exit 1
+fi
+
+exit 0

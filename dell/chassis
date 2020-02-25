@@ -1,0 +1,15 @@
+#!/bin/bash
+
+CHASSIS_CHECK=`/opt/dell/srvadmin/bin/omreport chassis | grep ':' | tail -n +2`
+if [ -z "$CHASSIS_CHECK" ]
+then
+        exit 1
+fi
+
+CHASSIS_CHECK=`echo "$CHASSIS_CHECK" | grep -v "^Ok"`
+if [ -n "$CHASSIS_CHECK" ]
+then
+        exit 1
+else
+        exit 0
+fi
