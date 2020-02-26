@@ -1,0 +1,4 @@
+#!/bin/bash
+emailer="/root/scripts/utils/emailer/emailer"
+$emailer -s CHASSIS /root/scripts/utils/dell/chassis
+$emailer -s RAID /root/scripts/utils/dell/raid
