@@ -96,7 +96,6 @@ if [ ! -e $script ]; then
         show_not_found
 	exit 2
 fi
-command="$@"
 # Rcpt validation
 echo "$rcpt" | grep -q '@' && valid_rcpt=1
 # Mailer validation
@@ -114,11 +113,11 @@ outfile="$logdir/$basename.out"
 errfile="$logdir/$basename.err"
 mkdir -p $logdir
 echo >> $logfile
-echo "COMMAND:    $command" >> $logfile
+echo "COMMAND:    $@" >> $logfile
 echo "START DATE: $startdate" >> $logfile
 
 # Execute
-cd $dirname; $command 2>$errfile >$outfile; exit_code=$?; original_exit_code=$exit_code
+cd $dirname; "$@" 2>$errfile >$outfile; exit_code=$?; original_exit_code=$exit_code
 cat $outfile $errfile >>$logfile
 
 # Detect severity
