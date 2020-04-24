@@ -5,7 +5,7 @@ lastsent="/tmp/usedspace.lastsent"
 currentdate=`date -Idate`
 
 # If limit2 is reached, immediately send a warning
-for used in `df -h | grep -o "[[:digit:]]\+%" | grep -o "[[:digit:]]\+"`; do
+for used in `df -h | grep -v loop | grep -o "[[:digit:]]\+%" | grep -o "[[:digit:]]\+"`; do
 	if [ $used -gt $limit2 ]; then
 		echo "Low free space (usage limit: $limit2)! See below for details:"
 		df -h
@@ -26,7 +26,7 @@ if [ "$lastdate" == "$currentdate" ]; then
 	exit 0
 fi
 # If they differ, go ahead and, if needed, send and alert
-for used in `df -h | grep -o "[[:digit:]]\+%" | grep -o "[[:digit:]]\+"`; do
+for used in `df -h | grep -v loop | grep -o "[[:digit:]]\+%" | grep -o "[[:digit:]]\+"`; do
         if [ $used -gt $limit1 ]; then
                 echo "Low free space (usage limit: $limit1)! See below for details:"
                 df -h
