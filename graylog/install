@@ -5,10 +5,10 @@ cd `dirname $0`
 test -f /etc/redhat-release || echo "RedHat only support, exiting"
 test -f /etc/redhat-release || exit 1
 
-# epel
+# repos
 yum install -y epel-release
+yum install -y https://packages.graylog2.org/repo/packages/graylog-4.3-repository_latest.rpm
 cp -f ./files/*.repo /etc/yum.repos.d/
-cp -f ./files/graylog.conf /etc/httpd/conf.d/
 restorecon -RF /etc/yum.repos.d/
 crb enable
 
@@ -24,8 +24,10 @@ sed "s/password_secret =$/password_secret = $password_secret/" -i /etc/graylog/s
 grep -q "root_password_sha2 =$" /etc/graylog/server/server.conf && echo -n "Enter graylog password: " && root_password_sha2=`head -1 </dev/stdin | tr -d '\n' | sha256sum | cut -d" " -f1`
 sed "s/root_password_sha2 =$/root_password_sha2 = $root_password_sha2/" -i /etc/graylog/server/server.conf
 # /etc/httpd/conf.d/graylog.conf
+cp -f ./files/graylog.conf /etc/httpd/conf.d/
 grep -q "__EXTIP__" /etc/httpd/conf.d/graylog.conf && echo -n "Enter external IP: " && extip=`head -1 </dev/stdin | tr -d '\n'`
 sed "s/__EXTIP__/$extip/" -i /etc/httpd/conf.d/graylog.conf
+restorecon -RF /etc/httpd/conf.d/
 
 # selinux and firewall
 setsebool -P httpd_can_network_connect=on
