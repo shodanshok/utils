@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # redhat only
+echo "### DISTRO CHECK"
 cd `dirname $0`
 test -f /etc/redhat-release || echo "RedHat only support, exiting"
 test -f /etc/redhat-release || exit 1
 
 # repos
+echo "### INSTALLING REPOS"
 yum install -y epel-release
 yum install -y https://packages.graylog2.org/repo/packages/graylog-4.3-repository_latest.rpm
 cp -f ./files/*.repo /etc/yum.repos.d/
@@ -13,10 +15,12 @@ restorecon -RF /etc/yum.repos.d/
 crb enable
 
 # install
+echo "### INSTALLING PACKAGES"
 yum install -y pwgen java-11-openjdk-headless httpd mod_ssl mongodb-org opensearch graylog-server
 
 # config
 # /etc/opensearch/opensearch.yml
+echo "### CONFIGURING PACKAGES"
 grep -q "plugins.security.disabled: true" /etc/opensearch/opensearch.yml || echo "plugins.security.disabled: true" >> /etc/opensearch/opensearch.yml
 # /etc/graylog/server/server.conf
 password_secret=`pwgen -N 1 -s 96`
@@ -30,6 +34,7 @@ sed "s/__EXTIP__/$extip/" -i /etc/httpd/conf.d/graylog.conf
 restorecon -RF /etc/httpd/conf.d/
 
 # selinux and firewall
+echo "### CONFIGURING SELINUX AND FIREWALL"
 setsebool -P httpd_can_network_connect=on
 firewall-cmd --add-port 5044/tcp
 firewall-cmd --add-port 10514/tcp
@@ -43,5 +48,9 @@ firewall-cmd --add-service https
 firewall-cmd --runtime-to-permanent
 
 # end
-echo "Please start in that order: mongod, opensearch and graylog-server"
+echo "### CONFIGURING AUTOSTART ON BOOT"
+systemctl enable mongod
+systemctl enable opensearch
+systemctl enable graylog-server
+echo "Finished, when ready please start in that order: mongod, opensearch and graylog-server"
 exit 0
