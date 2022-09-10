@@ -47,10 +47,15 @@ firewall-cmd --add-service http
 firewall-cmd --add-service https
 firewall-cmd --runtime-to-permanent
 
-# end
+# autostart
 echo "### CONFIGURING AUTOSTART ON BOOT"
 systemctl enable mongod
 systemctl enable opensearch
 systemctl enable graylog-server
-echo "Finished, when ready please start in that order: mongod, opensearch and graylog-server"
+systemctl enable httpd
+
+# end
+echo "### FINISHED"
+echo "When ready, please start in that order: mongod, opensearch, graylog-server and httpd"
+echo "systemctl start mongod && systemctl start opensearch && systemctl start graylog-server && systemctl start httpd"
 exit 0
