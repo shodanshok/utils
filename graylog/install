@@ -24,9 +24,11 @@ echo "### CONFIGURING PACKAGES"
 grep -q "plugins.security.disabled: true" /etc/opensearch/opensearch.yml || echo "plugins.security.disabled: true" >> /etc/opensearch/opensearch.yml
 # /etc/graylog/server/server.conf
 password_secret=`pwgen -N 1 -s 96`
+root_timezone=`timedatectl show | grep Timezone | cut -d '=' -f 2`
 sed "s/password_secret =$/password_secret = $password_secret/" -i /etc/graylog/server/server.conf
 grep -q "root_password_sha2 =$" /etc/graylog/server/server.conf && echo -n "Enter graylog password: " && root_password_sha2=`head -1 </dev/stdin | tr -d '\n' | sha256sum | cut -d" " -f1`
 sed "s/root_password_sha2 =$/root_password_sha2 = $root_password_sha2/" -i /etc/graylog/server/server.conf
+realpath /etc/localtime | grep -q -v "UTC\|UCT\|GMT" && sed "s~#root_timezone = UTC$~root_timezone = $root_timezone~" -i /etc/graylog/server/server.conf
 # /etc/httpd/conf.d/graylog.conf
 test -f /etc/httpd/conf.d/graylog.conf || cp -f ./files/graylog.conf /etc/httpd/conf.d/
 grep -q "__EXTIP__" /etc/httpd/conf.d/graylog.conf && echo -n "Enter external IP: " && extip=`head -1 </dev/stdin | tr -d '\n'`
