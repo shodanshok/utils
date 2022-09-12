@@ -38,6 +38,8 @@ restorecon -RF /etc/httpd/conf.d/
 # selinux and firewall
 echo "### CONFIGURING SELINUX AND FIREWALL"
 setsebool -P httpd_can_network_connect=on
+firewall-cmd --add-port 514/tcp
+firewall-cmd --add-port 514/udp
 firewall-cmd --add-port 5044/tcp
 firewall-cmd --add-port 10514/tcp
 firewall-cmd --add-port 10514/udp
