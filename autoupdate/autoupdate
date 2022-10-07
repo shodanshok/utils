@@ -38,7 +38,7 @@ fi
 if [ -e /etc/redhat-release ]; then
 	redhat=1
 	yum makecache fast -q 2>/dev/null
-	yum install yum-plugin-security -y > /dev/null
+	yum install yum-plugin-security -y -q 2>/dev/null
 fi
 
 # Check if we need to upgrade
