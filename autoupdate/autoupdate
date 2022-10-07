@@ -37,7 +37,7 @@ fi
 
 if [ -e /etc/redhat-release ]; then
 	redhat=1
-	yum makecache fast -q 2>/dev/null
+	yum makecache -q 2>/dev/null
 	yum install yum-plugin-security -y -q 2>/dev/null
 fi
 
@@ -89,6 +89,7 @@ if [ $redhat -gt 0 ]; then
 	fi
 elif
    [ $debian -gt 0 ]; then
+	apt_options="$apt_options -oDpkg::Options::='--force-confdef' -oDpkg::Options::='--force-confold'"
 	export DEBIAN_FRONTEND="noninteractive"
 	command="apt-get upgrade -y $apt_options"
 fi
@@ -110,7 +111,11 @@ if [ $debian -eq 1 ]; then
 fi
 
 if [ $redhat -eq 1 ]; then
-	yum history info | grep -E "$critical_packages" && should_reboot=1
+	if [ -e /usr/bin/needs-restarting ]; then
+		/usr/bin/needs-restarting -r || should_reboot=1
+	else
+		yum history info | grep -E "$critical_packages" && should_reboot=1
+	fi
 fi
 
 # If we can reboot, then REBOOT
@@ -119,5 +124,5 @@ if [ $should_reboot -gt 0 ]; then
 	exit 200
 fi
 
-# Exit code 100 signals and updated system
+# Exit code 100 signals an updated system
 exit 100
