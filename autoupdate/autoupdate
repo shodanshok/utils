@@ -32,7 +32,7 @@ debian=0
 redhat=0
 if [ -e /etc/debian_version ]; then
 	debian=1
-	grep security /etc/apt/sources.list > /etc/apt/security.list
+	grep -h "^deb.*security" /etc/apt/sources.list /etc/apt/sources.list.d/* > /etc/apt/security.list
 fi
 
 if [ -e /etc/redhat-release ]; then
@@ -66,7 +66,7 @@ fi
 if [ $debian -gt 0 ]; then
 	# Determine update type
 	if [ "$update_type" == "security" ] || [ "$update_type" == "security-minimal" ]; then
-		apt_options="-oDir::Etc::Sourcelist=/etc/apt/security.list"
+		apt_options="-oDir::Etc::Sourcelist=/etc/apt/security.list -oDir::Etc::SourceParts=/dev/null"
 	fi
 	apt-get update > /dev/null
 	apt-get upgrade --just-print $apt_options | grep -i "The following packages will be upgraded"
