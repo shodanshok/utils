@@ -102,9 +102,9 @@ if [ $update_error -ne 0 ]; then
 	exit $update_error
 fi
 
-# Debian does not automatically restart upgraded services, do it now
-if [ $debian -eq 1 ]; then
-	needrestart -f dialog -r a 2>&1
+# Debian (mostly Ubuntu) does not always automatically restart upgraded services, do it now if needrestart is available
+if [ $debian -eq 1 ] && [ -e /usr/sbin/needrestart ]; then
+	/usr/sbin/needrestart -f dialog -r a 2>&1
 fi
 
 # Determine if we should/can reboot
