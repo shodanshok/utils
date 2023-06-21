@@ -31,7 +31,9 @@ sed "s/root_password_sha2 =$/root_password_sha2 = $root_password_sha2/" -i /etc/
 realpath /etc/localtime | grep -q -v "UTC\|UCT\|GMT" && sed "s~#root_timezone = UTC$~root_timezone = $root_timezone~" -i /etc/graylog/server/server.conf
 # /etc/httpd/conf.d/graylog.conf
 test -f /etc/httpd/conf.d/graylog.conf || cp -f ./files/graylog.conf /etc/httpd/conf.d/
+grep -q "__DNSNAME__" /etc/httpd/conf.d/graylog.conf && echo -n "Enter DNS name: " && dnsname=`head -1 </dev/stdin | tr -d '\n'`
 grep -q "__EXTIP__" /etc/httpd/conf.d/graylog.conf && echo -n "Enter external IP: " && extip=`head -1 </dev/stdin | tr -d '\n'`
+sed "s/__DNSNAME__/$dnsname/" -i /etc/httpd/conf.d/graylog.conf
 sed "s/__EXTIP__/$extip/" -i /etc/httpd/conf.d/graylog.conf
 restorecon -RF /etc/httpd/conf.d/
 
