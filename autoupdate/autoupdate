@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# for simple oneliner
+# yum upgrade -y | grep -q Upgraded && reboot
+# apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y -oDpkg::Options::=--force-confdef -oDpkg::Options::=--force-confold 2>&1 | grep -q upgraded: && reboot
+
 # If any of these packages is updated, we should reboot
 critical_packages="kernel|libc"
 # Update type
@@ -15,15 +19,13 @@ if [ $? -eq 0 ]; then
 	echo "      'normal' (default)"
 	echo "      'security' (security updates only)"
 	echo "      'security-minimal' (minimal update to secure the system)"
-	echo
-	echo "Note: for debian-based systems, 'security' and 'security-minimal'"
-	echo "      have the same effect"
+	echo "      'dist-upgrade' (for debian-based systems)"
 	echo
 	exit 0
 fi
 
 # If not specified differently, use normal update procedure
-if [ "$update_type" != "security" ] && [ "$update_type" != "security-minimal" ]; then
+if [ "$update_type" != "security" ] && [ "$update_type" != "security-minimal" ] && [ "$update_type" != "dist-upgrade" ]; then
 	update_type="normal"
 fi
 
@@ -32,13 +34,16 @@ debian=0
 redhat=0
 if [ -e /etc/debian_version ]; then
 	debian=1
-	grep -h "^deb.*security" /etc/apt/sources.list /etc/apt/sources.list.d/* > /etc/apt/security.list
+	apt-get update > /dev/null
 fi
 
 if [ -e /etc/redhat-release ]; then
 	redhat=1
 	yum makecache -q 2>/dev/null
 	yum install yum-plugin-security -y -q 2>/dev/null
+	if [ "$update_type" == "dist-upgrade" ]; then
+		update_type="normal"
+	fi
 fi
 
 # Check if we need to upgrade
@@ -65,12 +70,16 @@ fi
 
 if [ $debian -gt 0 ]; then
 	# Determine update type
-	if [ "$update_type" == "security" ] || [ "$update_type" == "security-minimal" ]; then
-		apt_options="-oDir::Etc::Sourcelist=/etc/apt/security.list -oDir::Etc::SourceParts=/dev/null"
+	if [ "$update_type" == "security" ]; then
+		pkgs=`apt-get dist-upgrade --just-print | grep "^Inst.*-security" | cut -d " " -f 2 | xargs`
+	elif [ "$update_type" == "security-minimal" ]; then
+		pkgs=`apt-get upgrade --just-print | grep "^Inst.*-security" | cut -d " " -f 2 | xargs`
+	elif [ "$update_type" == "dist-upgrade" ]; then
+		pkgs=`apt-get dist-upgrade --just-print | grep "^Inst" | cut -d " " -f 2 | xargs`
+	else
+		pkgs=`apt-get upgrade --just-print | grep "^Inst" | cut -d " " -f 2 | xargs`
 	fi
-	apt-get update > /dev/null
-	apt-get upgrade --just-print $apt_options | grep -i "The following packages will be upgraded"
-	if [ $? -ne 0 ]; then
+	if [ -z "$pkgs" ]; then
 		echo "No updates found"
 		exit 0
 	fi
@@ -89,9 +98,17 @@ if [ $redhat -gt 0 ]; then
 	fi
 elif
    [ $debian -gt 0 ]; then
-	apt_options="$apt_options -oDpkg::Options::=--force-confdef -oDpkg::Options::=--force-confold"
 	export DEBIAN_FRONTEND="noninteractive"
-	command="apt-get upgrade -y $apt_options"
+	opts="-oDpkg::Options::=--force-confdef -oDpkg::Options::=--force-confold"
+	if [ "$update_type" == "security" ]; then
+		command="apt-get install -y $opts $pkgs"
+	elif [ "$update_type" == "security-minimal" ]; then
+		command="apt-get install -y $opts $pkgs"
+	elif [ "$update_type" == "dist-upgrade" ]; then
+		command="apt-get dist-upgrade -y $opts"
+	else
+		command="apt-get upgrade -y $opts"
+	fi
 fi
 echo "Executing command: $command"
 # Execute and error cheking
@@ -104,7 +121,8 @@ fi
 
 # Debian (mostly Ubuntu) does not always automatically restart upgraded services, do it now if needrestart is available
 if [ $debian -eq 1 ] && [ -e /usr/sbin/needrestart ]; then
-	/usr/sbin/needrestart -f dialog -r a 2>&1
+	# Use dialog to avoid batch mode (which never restarts services) on Ubuntu 22.04
+	grep -s 22.04 /etc/lsb-release && /usr/sbin/needrestart -f dialog -r a 2>&1 || /usr/sbin/needrestart -r a 2>&1
 fi
 
 # Determine if we should/can reboot
